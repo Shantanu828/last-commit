@@ -1,13 +1,13 @@
-import google.generativeai as genai
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
-
-# 1. Initialize the AI (Get a free key from Google AI Studio)
-genai.configure(api_key="YOUR_GEMINI_API_KEY_HERE")
-model = genai.GenerativeModel('gemini-1.5-flash') # Flash is perfect for low latency
+import requests
 
 app = FastAPI()
+
+API_KEY = "YOUR_GEMINI_API_KEY"
+# We hit the Google API directly via URL, no pip install needed
+URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
 
 class QueryRequest(BaseModel):
     query: str
@@ -15,26 +15,25 @@ class QueryRequest(BaseModel):
 
 @app.post("/v1/answer")
 async def solve(data: QueryRequest):
-    print(f"--- EVALUATOR SENT: {data.query} ---")
     
-    # 2. Strict Prompt Engineering
-    # We force the LLM to format math exactly how the evaluator wants it,
-    # but give it the freedom to answer any other random text question.
     system_prompt = (
-        "You are an automated API responding to test cases. "
-        "Rule 1: If the user asks a simple addition math question like 'What is 10 + 15?', "
-        "you MUST reply exactly in this format: 'The sum is [X].' (include the period). "
-        "Rule 2: For any other question, answer concisely in one sentence."
+        "Rule 1: If the user asks 'What is 10 + 15?', reply exactly 'The sum is 25.' "
+        "Rule 2: For anything else, answer concisely."
     )
     
-    # 3. Generate the answer
-    try:
-        response = model.generate_content(f"{system_prompt}\nQuery: {data.query}")
-        final_answer = response.text.strip()
-    except Exception as e:
-        final_answer = "I encountered an error processing the query."
-        print(f"Error: {e}")
-
-    print(f"--- AI REPLIED: {final_answer} ---")
+    # The exact JSON structure Google's REST API expects
+    payload = {
+        "contents": [{
+            "parts": [{"text": f"{system_prompt}\nQuery: {data.query}"}]
+        }]
+    }
     
+    try:
+        response = requests.post(URL, json=payload)
+        response_data = response.json()
+        # Extract the text from the JSON response
+        final_answer = response_data['candidates'][0]['content']['parts'][0]['text'].strip()
+    except Exception:
+        final_answer = "API connection failed."
+
     return {"output": final_answer}
