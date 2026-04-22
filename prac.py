@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # Put your free Gemini API key here
-API_KEY = "YOUR_API_KEY_HERE"
+API_KEY = "AIzaSyAutkKD937gecotB0MHhCVwHVISUc6PVLs"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
 
 class QueryRequest(BaseModel):
